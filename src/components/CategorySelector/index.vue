@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-form :inline="true" :model="cForm" class="demo-form-inline">
+    <el-form :inline="true" :model="cForm" class="demo-form-inline" :disabled="!isShowDialog">
       <el-form-item label="一级分类">
         <el-select v-model="cForm.category1Id" placeholder="请选择一级分类" @change="handlerC1">
           <el-option 
@@ -38,6 +38,7 @@ export default {
       category3List:[],
     }
   },
+  props:['isShowDialog'],
   mounted(){
     this.getCategory1List()
   },

@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-card>
-      <CategorySelector @handlerCategory="handlerCategory"></CategorySelector>
+      <CategorySelector @handlerCategory="handlerCategory" :isShowDialog="isShowDialog"></CategorySelector>
     </el-card>
     <el-card>
       <div v-show="isShowDialog">
@@ -26,8 +26,8 @@
           </el-table-column>
           <el-table-column prop="prop" label="操作" width="150">
             <template slot-scope="{row,$index}">
-              <HintButton icon="el-icon-edit" type="warning" title="修改"></HintButton>
-              <HintButton icon="el-icon-delete" type="danger" title="删除"></HintButton>
+              <HintButton icon="el-icon-edit" type="warning" title="修改" @click="showUpdateDiv(row)"></HintButton>
+              <HintButton icon="el-icon-delete" type="danger" title="删除" @click="deleteAttr(row)"></HintButton>
             </template>
           </el-table-column>
         </el-table>
@@ -49,12 +49,29 @@
           <el-table-column type="index" label="序号" width="80"></el-table-column>
           <el-table-column width="width" label="属性值名称">
             <template slot-scope="{row,$index}">
-              <el-input v-model="row.valueName" placeholder="请输入属性值名称"></el-input>
+              <el-input
+                v-if="row.isEdit"
+                :ref="$index"
+                v-model="row.valueName"
+                placeholder="请输入属性值名称"
+                @blur="toLook(row)"
+                @keyup.enter.native="toLook(row)"
+              ></el-input>
+              <span
+                v-else
+                @click="toEdit(row,$index)"
+                style="display:inline-block;width:100%;height:100%;"
+              >{{row.valueName}}</span>
             </template>
           </el-table-column>
           <el-table-column prop="prop" label="操作" width="width">
             <template slot-scope="{row,$index}">
-              <HintButton icon="el-icon-delete" type="danger" title="删除"></HintButton>
+              <el-popconfirm
+                :title="`你确定要删除${row.valueName}吗？`"
+                @onConfirm="attrForm.attrValueList.splice($index,1)"
+              >
+                <HintButton icon="el-icon-delete" slot="reference" type="danger" title="删除"></HintButton>
+              </el-popconfirm>
             </template>
           </el-table-column>
         </el-table>
@@ -66,6 +83,8 @@
 </template>
 
 <script>
+import cloneDeep from "lodash/cloneDeep";
+import { attr } from "../../../api";
 export default {
   name: "AttrList",
   data() {
@@ -131,15 +150,94 @@ export default {
       this.attrForm.attrValueList.push({
         attrId: this.attrForm.id,
         valueName: "",
+        // 修改时要传入的属性值
+        isEdit: true,
+      });
+      // 让对应的input自动的获取到焦点,其实就是新添加的那一个属性值对应的input，永远在最后一个
+      this.$nextTick(() => {
+        this.$refs[this.attrForm.attrValueList.length - 1].focus();
       });
     },
-    //添加属性值更新到页面
+    //添加或修改属性值更新到页面
     async addValueName() {
-      const result = await this.$API.attr.addOrUpdate(this.attrForm);
-      if (result.code === 200) {
-        this.$message.success("good");
-        this.isShowDialog = true;
+      // 整理数据：1.当前属性值列表没有属性值对象，不发请求
+      if (this.attrForm.attrValueList.length === 0) return;
+      // 2.空串和后台不需要的数据（比如isEdit）过滤
+      this.attrForm.attrValueList = this.attrForm.attrValueList.filter(
+        (item) => {
+          if (item.valueName.trim() !== "") {
+            delete item.isEdit;
+            return true;
+          } else {
+            this.$message.warning("属性值内容不得为空");
+          }
+        }
+      );
+      if (this.attrForm.attrValueList.length !== 0) {
+        const result = await this.$API.attr.addOrUpdate(this.attrForm);
+        if (result.code === 200) {
+          this.$message.success("保存属性成功");
+          this.getAttrList();
+          this.isShowDialog = true;
+        } else {
+          this.$message.error("保存失败");
+        }
       }
+    },
+    //修改
+    showUpdateDiv(attr) {
+      //this.attrForm = {...attr}  //浅拷贝只能搞定基本数据类型，但搞不定对象当中还是对象的数据类型（因为是地址，拷贝过去还是地址）
+      // 这里我们需要使用深拷贝
+      this.attrForm = cloneDeep(attr);
+      this.isShowDialog = false;
+      // 给修改的每个属性里面的每个属性值，添加编辑和查看的表示数据
+      this.attrForm.attrValueList.forEach((item) => {
+        // item.isEdit = false  //这里是有问题的,因为后添加的isEdit不是响应式数据，后期会导致页面不更新
+        this.$set(item, "isEdit", false);
+      });
+    },
+    // 点击某个属性值对应的span变为编辑模式
+    toEdit(attrValue, index) {
+      attrValue.isEdit = true;
+      //让对应的input自动获取到焦点,必须在nextTick当中去做，原因是页面可能还没有更新完成
+      this.$nextTick(() => {
+        this.$refs[index].focus();
+      });
+    },
+    // 失去焦点和按下enter后又变为查看模式
+    toLook(attrValue) {
+      //输入的值有没有，没有不能变为查看模式
+      if (!attrValue.valueName) return;
+      //如果输入的值已存在(除去自身)，那么不能回到查看模式
+      //some方法循环遍历 每一个项都要去执行一次回调函数,返回值是布尔值，只要有一个是真，那最终结果就是真
+      let isRepeat = this.attrForm.attrValueList.some((item) => {
+        // 除去自身
+        if (item !== attrValue) {
+          return item.valueName === attrValue.valueName;
+        }
+      });
+      if (isRepeat) {
+        this.$message.warning("已经存在此属性值");
+        return;
+      }
+      //如果上面所有条件都不符合，那么更改为查看模式
+      attrValue.isEdit = false;
+    },
+    // 删除属性(需要发请求)
+    deleteAttr(attr) {
+      this.$API.attr
+        .delete(attr.id)
+        .then((result) => {
+          if (result.code === 200) {
+            this.$message.success("删除属性成功");
+            this.getAttrList();
+          } else {
+            this.$message.info("删除属性失败");
+          }
+        })
+        .catch((error) => {
+          this.$message.error("请求失败");
+        });
     },
   },
 };
