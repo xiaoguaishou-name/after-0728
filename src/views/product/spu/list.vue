@@ -12,9 +12,9 @@
           <el-table-column prop="spuName" label="SPU名称" width="width"></el-table-column>
           <el-table-column prop="description" label="SPU描述" width="width"></el-table-column>
           <el-table-column prop="prop" label="操作" width="width">
-            <template>
+            <template slot-scope="{row,$index}">
               <el-button type="primary" title="添加SKU" icon="el-icon-plus" @click="showSkuForm"></el-button>
-              <el-button type="primary" title="修改SPU" icon="el-icon-edit" @click="showSpuForm"></el-button>
+              <el-button type="primary" title="修改SPU" icon="el-icon-edit" @click="showUpdateSpuForm(row.id)"></el-button>
               <el-button type="info" title="查看所有SKU" icon="el-icon-info"></el-button>
               <el-button type="danger" title="删除SPU" icon="el-icon-delete"></el-button>
             </template>
@@ -32,7 +32,10 @@
         ></el-pagination>
       </div>
       <div>
-        <SpuForm v-show="isShowSpuForm" :visible.sync="isShowSpuForm"></SpuForm>
+        <SpuForm v-show="isShowSpuForm" 
+        :visible.sync="isShowSpuForm" 
+        ref="spu" @saveSuccess="saveSuccess"
+        @cancel="cancel"></SpuForm>
       </div>
       <div>
         <SkuForm v-show="isShowSkuForm"></SkuForm>
@@ -61,6 +64,26 @@ export default {
     };
   },
   methods: {
+    cancel(){
+      // 点击返回列表返回
+      this.$refs.spu.resetData()
+      this.skuId = null  //需要再次清空标识
+    },
+   
+    saveSuccess(){
+      // 从哪返回来的
+      if(this.skuId){
+        // 修改
+        this.getSpuList(this.page)
+        // 清空当前spu组件的所有数据
+      }else{
+        // 添加
+        this.getSpuList()
+        // 清空当前spu组件的所有数据
+      }
+      this.$refs.spu.resetData()
+      this.skuId = null
+    },
     handlerCategory({ categoryId, level }) {
       if (level === 1) {
         //清空之前保留的2级及3级id以及之前请求的attrList
@@ -97,8 +120,18 @@ export default {
     showSkuForm(){
       this.isShowSkuForm = true
     },
+    // 添加
     showSpuForm(){
       this.isShowSpuForm = true
+      this.$refs.spu.initShowSpuForm(this.category3Id)
+    },
+    // 修改
+    showUpdateSpuForm(spuId){
+      this.isShowSpuForm = true
+      this.spuId = spuId  //标识，区分是从添加还是修改跳转过去的
+      // 在父组件中找到子组件对象，调用子组件的方法，去发送请求获取初始展示数据
+      //为什么要这样做？我们需要把点击的这个spu的id传递过去
+      this.$refs.spu.initUpdateSpuForm(spuId,this.category3Id)
     }
   },
   components: {

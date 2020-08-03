@@ -22,21 +22,24 @@ export default {
       method:'get'
     })
   },
-  //请求添加spu数据
-  getAddSpuInfo(data) {
-    return request({
-      url: `${api_name}/saveSpuInfo`,
-      method: 'post',
-      data
-    })
-  },
-  //请求修改spu数据
-  updateSpuInfo(data) {
-    return request({
-      url: `${api_name}/updateSpuInfo`,
-      method: 'post',
-      data
-    })
+  // //请求添加spu数据
+  // getAddSpuInfo(data) {
+  //   return request({
+  //     url: `${api_name}/saveSpuInfo`,
+  //     method: 'post',
+  //     data
+  //   })
+  // },
+  // //请求修改spu数据
+  // updateSpuInfo(data) {
+  //   return request({
+  //     url: `${api_name}/updateSpuInfo`,
+  //     method: 'post',
+  //     data
+  //   })
+  // },
+  addUpdate(spuInfo) {
+    return request.post(`/admin/product/${spuInfo.id ? 'update' : 'save'}SpuInfo`, spuInfo)
   },
   //请求spu分页列表数据
   getSpuList(page,limit,category3Id) {

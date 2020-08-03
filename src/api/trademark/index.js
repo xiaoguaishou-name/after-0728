@@ -34,5 +34,12 @@ export default {
       url: `${api_name}/remove/${id}`,
       method: 'delete'
     })
+  },
+  //请求获取所有的品牌列表
+  getAll() {
+    return request({
+      url: `${api_name}/getTrademarkList`,
+      method:'get'
+    })
   }
 }
